@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Diasoft JS Course</title>
+  <style>
+    :root {
+      --select-border-color: #cbd5e1;
+      --select-button-background: #ffffff;
+      --select-icon-color: #64748b;
+      --select-border-color-hover: #94a3b8;
+      --select-popup-background: #ffffff;
+      --select-button-border-color: #cccccc;
+      --select-search-border-color: #dbe2ea;
+      --select-search-background: #f8fafc;
+      --select-option-hover-background: #f1f5f9;
+    }
+  </style>
+</head>
+<body>
+<script>
+  const onLoad = (event) => {
+    const componentName = event.currentTarget.dataset.name;
+    const componentElement = document.createElement(componentName);
+    componentElement.innerHTML = `
+      <option value="opt1">Option 1</option>
+      <option value="opt2">Option 2</option>
+      <option value="opt3">Option 3</option>
+    `;
+    document.body.append(componentElement);
+  };
+
+  const onError = (err) => {
+    console.error('Не удалось загрузить веб-компонент:', err);
+  };
+
+  const components = ['my-select'];
+
+  document.addEventListener('DOMContentLoaded', () => {
+    components.forEach((component) => {
+      const script = document.createElement('script');
+
+      script.src = `./${component}.js`;
+      script.defer = true;
+      script.dataset.name = component;
+      script.addEventListener('load', onLoad);
+      script.addEventListener('error', onError);
+
+      document.body.append(script);
+    });
+  });
+</script>
+</body>
+</html>
