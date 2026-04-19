@@ -1,24 +1,60 @@
-const currentScript = document.currentScript;
-const componentName = currentScript?.dataset.name;
-
 class MySelect extends HTMLElement {
   #shadow;
   #selectButton;
   #selectPopup;
-  #selectPopupSearch;
   #optionsBox;
+  #searchInput;
+  #options = [];
+  #selectedValues = new Set();
+  #searchQuery = '';
 
   connectedCallback() {
     this.#shadow = this.attachShadow({ mode: 'open' });
     this.#createTemplate();
+    document.addEventListener('click', this.#handleDocumentClick);
   }
 
-  #openPopup = () => {
-    this.#selectPopup.classList.toggle('open');
+  disconnectedCallback() {
+    document.removeEventListener('click', this.#handleDocumentClick);
+    this.#searchInput?.removeEventListener('input', this.#handleSearchInput);
+    this.#searchInput?.removeEventListener('search', this.#handleSearchInput);
+    this.#searchInput?.removeEventListener('keyup', this.#handleSearchInput);
+  }
+
+  get value() {
+    return Array.from(this.#selectedValues).join(',');
+  }
+
+  set value(rawValue) {
+    const nextValues = String(rawValue ?? '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+    this.#selectedValues = new Set(nextValues);
+
+    if (!this.#optionsBox) {
+      return;
+    }
+
+    this.#syncOptionInputs();
+    this.#syncButtonLabel();
+    this.setAttribute('value', this.value);
+  }
+
+  #togglePopup = () => {
+    if (this.#selectPopup.classList.contains('open')) {
+      this.#closePopup();
+      return;
+    }
+
+    this.#openPopup();
   };
 
   #createTemplate() {
-    const options = Array.from(this.querySelectorAll('option')).map((option) => ({
+    const externalSearchInput = this.querySelector('[slot="search"]');
+    const searchPlaceholder = this.getAttribute('search-placeholder');
+    this.#options = Array.from(this.querySelectorAll('option')).map((option) => ({
       value: option.value,
       text: option.textContent,
     }));
@@ -30,7 +66,7 @@ class MySelect extends HTMLElement {
           position: relative;
           display: inline-block;
           min-width: 20rem;
-          font-family: var(--select-font-family, Segoe UI), sans-serif;
+          font-family: var(--font-family, Segoe UI), sans-serif;
         }
 
         .select-button {
@@ -38,9 +74,9 @@ class MySelect extends HTMLElement {
           width: 100%;
           min-height: 2.75rem;
           padding: 0.75rem 2.75rem 0.75rem 0.9375rem;
-          border: 1px solid var(--select-border-color, #cbd5e1);
+          border: 1px solid var(--border-color, #cbd5e1);
           border-radius: 0.6rem;
-          background: var(--select-button-background, #ffffff);
+          background: var(--background, #ffffff);
           text-align: left;
           font: inherit;
           cursor: pointer;
@@ -71,8 +107,8 @@ class MySelect extends HTMLElement {
           top: calc(100% + 0.5rem);
           left: 0;
           padding: 0.75rem;
-          background: var(--select-popup-background, #fff);
-          border: 1px solid var(--select-border-color, #cbd5e1);
+          background: var(--background, #fff);
+          border: 1px solid var(--border-color, #cbd5e1);
           border-radius: 0.6rem;
           box-shadow: 0 20px 50px rgb(15 23 42 / 0.16), 0 8px 24px rgb(15 23 42 / 0.08);
         }
@@ -81,7 +117,7 @@ class MySelect extends HTMLElement {
           display: block;
         }
 
-        .select-popup-search {
+        .select-popup-search, ::slotted(.select-popup-search) {
           width: 100%;
           margin-bottom: 0.5rem;
           padding: 0.7rem 0.875rem;
@@ -117,7 +153,9 @@ class MySelect extends HTMLElement {
       </style>
       <button type="button" class="select-button">Select an option</button>
       <div class="select-popup">
-        <input class="select-popup-search" type="search" placeholder="Search options" />
+        <slot name="search">
+          <input class="select-popup-search" type="search" placeholder="Search options" />
+        </slot>
         <div class="select-popup-options"><!--Здесь будет список опций--></div>
       </div>
     `;
@@ -126,22 +164,52 @@ class MySelect extends HTMLElement {
 
     this.#selectButton = this.#shadow.querySelector('.select-button');
     this.#selectPopup = this.#shadow.querySelector('.select-popup');
-    this.#selectPopupSearch = this.#shadow.querySelector('.select-popup-search');
     this.#optionsBox = this.#shadow.querySelector('.select-popup-options');
+    this.#searchInput = this.#shadow.querySelector('.select-popup-search');
 
-    const renderedOptions = this.#renderOptions(options);
-    this.#optionsBox.replaceWith(renderedOptions);
-    this.#optionsBox = renderedOptions;
-    this.#selectButton.addEventListener('click', this.#openPopup);
+    if (searchPlaceholder) {
+      this.#searchInput.placeholder = searchPlaceholder;
+    }
+
+    if (externalSearchInput instanceof HTMLInputElement) {
+      this.#searchInput.placeholder = externalSearchInput.placeholder || this.#searchInput.placeholder;
+      this.#searchInput.value = externalSearchInput.value;
+      externalSearchInput.remove();
+    }
+
+    this.#selectButton.addEventListener('click', this.#togglePopup);
+    this.#optionsBox.addEventListener('change', this.#handleOptionChange);
+    this.#searchInput.addEventListener('input', this.#handleSearchInput);
+    this.#searchInput.addEventListener('search', this.#handleSearchInput);
+    this.#searchInput.addEventListener('keyup', this.#handleSearchInput);
 
     Array.from(this.querySelectorAll('option')).forEach((option) => option.remove());
+
+    const initialValue = this.getAttribute('value');
+    if (initialValue !== null) {
+      this.value = initialValue;
+    } else {
+      this.#syncButtonLabel();
+      this.setAttribute('value', this.value);
+    }
+
+    this.#searchQuery = this.#searchInput.value.trim().toLowerCase();
+    this.#renderVisibleOptions();
   }
 
-  #renderOptions(options) {
-    const optionsTemplate = document.createElement('template');
+  #renderVisibleOptions() {
+    const visibleOptions = this.#options.filter(({ text }) => text.toLowerCase().includes(this.#searchQuery));
     const optionTemplate = document.createElement('template');
 
-    optionsTemplate.innerHTML = `<div class="select-popup-options"></div>`;
+    this.#optionsBox.replaceChildren();
+
+    if (visibleOptions.length === 0) {
+      const emptyState = document.createElement('div');
+      emptyState.textContent = 'Nothing found';
+      this.#optionsBox.append(emptyState);
+      return;
+    }
+
     optionTemplate.innerHTML = `
       <label class="option">
         <input type="checkbox" />
@@ -149,21 +217,75 @@ class MySelect extends HTMLElement {
       </label>
     `;
 
-    const optionsBox = optionsTemplate.content.firstElementChild.cloneNode(true);
-
-    options.forEach(({ value, text }) => {
+    visibleOptions.forEach(({ value, text }) => {
       const optionElement = optionTemplate.content.firstElementChild.cloneNode(true);
       optionElement.dataset.value = value;
+      optionElement.dataset.text = text.toLowerCase();
+      const input = optionElement.querySelector('input');
+      input.value = value;
+      input.checked = this.#selectedValues.has(value);
       optionElement.querySelector('.option-text').textContent = text;
-      optionsBox.append(optionElement);
+      this.#optionsBox.append(optionElement);
     });
-
-    return optionsBox;
   }
-}
 
-if (!componentName) {
-  throw new Error('У скрипта веб-компонента отсутствует data-name.');
-} else if (!customElements.get(componentName)) {
-  customElements.define(componentName, MySelect);
+  #openPopup() {
+    this.#selectPopup.classList.add('open');
+    this.#searchInput?.focus();
+  }
+
+  #closePopup() {
+    this.#selectPopup.classList.remove('open');
+  }
+
+  #handleDocumentClick = (event) => {
+    const eventPath = event.composedPath();
+
+    if (eventPath.includes(this)) {
+      return;
+    }
+
+    this.#closePopup();
+  };
+
+  #handleOptionChange = (event) => {
+    const optionInput = event.target.closest('input[type="checkbox"]');
+
+    if (!optionInput) {
+      return;
+    }
+
+    if (optionInput.checked) {
+      this.#selectedValues.add(optionInput.value);
+    } else {
+      this.#selectedValues.delete(optionInput.value);
+    }
+
+    this.setAttribute('value', this.value);
+    this.#syncButtonLabel();
+  };
+
+  #handleSearchInput = (event) => {
+    this.#searchQuery = event.target.value.trim().toLowerCase();
+    this.#renderVisibleOptions();
+  }
+
+  #syncOptionInputs() {
+    Array.from(this.#optionsBox.querySelectorAll('input[type="checkbox"]')).forEach((input) => {
+      input.checked = this.#selectedValues.has(input.value);
+    });
+  }
+
+  #syncButtonLabel() {
+    if (this.#selectedValues.size === 0) {
+      this.#selectButton.textContent = 'Select an option';
+      return;
+    }
+
+    const selectedLabels = this.#options
+        .filter(({ value }) => this.#selectedValues.has(value))
+        .map(({ text }) => text);
+
+    this.#selectButton.textContent = selectedLabels.join(', ');
+  }
 }

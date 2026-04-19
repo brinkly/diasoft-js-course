@@ -5,11 +5,12 @@
   <title>Diasoft JS Course</title>
   <style>
     :root {
-      --select-border-color: #cbd5e1;
-      --select-button-background: #ffffff;
+      --font-family: Segoe UI, sans-serif;
+      --border-color: #cbd5e1;
+      --background: #ffffff;
+
       --select-icon-color: #64748b;
       --select-border-color-hover: #94a3b8;
-      --select-popup-background: #ffffff;
       --select-button-border-color: #cccccc;
       --select-search-border-color: #dbe2ea;
       --select-search-background: #f8fafc;
@@ -18,23 +19,35 @@
   </style>
 </head>
 <body>
+<my-panel>
+  <h4 slot="header" style="margin: 0">Custom Select Panel</h4>
+  <p>
+    Страна — территория, выделяемая по географическому положению, физико-географическим условиям либо государственно-политической принадлежности (суверенные государства, зависимые территории и владения).
+  </p>
+  <my-select>
+    <input slot="search" class="select-popup-search" type="search" placeholder="Поиск страны" />
+    <option value="russia">Россия</option>
+    <option value="china">Китай</option>
+    <option value="mongolia">Монголия</option>
+  </my-select>
+</my-panel>
 <script>
+  const components = ['my-select', 'my-panel'];
+
   const onLoad = (event) => {
     const componentName = event.currentTarget.dataset.name;
-    const componentElement = document.createElement(componentName);
-    componentElement.innerHTML = `
-      <option value="opt1">Option 1</option>
-      <option value="opt2">Option 2</option>
-      <option value="opt3">Option 3</option>
-    `;
-    document.body.append(componentElement);
+
+    if (componentName === 'my-select') {
+      customElements.define(componentName, MySelect);
+    }
+    if (componentName === 'my-panel') {
+      customElements.define(componentName, MyPanel);
+    }
   };
 
   const onError = (err) => {
     console.error('Не удалось загрузить веб-компонент:', err);
   };
-
-  const components = ['my-select'];
 
   document.addEventListener('DOMContentLoaded', () => {
     components.forEach((component) => {
