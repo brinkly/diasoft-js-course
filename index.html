@@ -9,6 +9,11 @@
   const onLoad = (event) => {
     const componentName = event.currentTarget.dataset.name;
     const componentElement = document.createElement(componentName);
+    componentElement.innerHTML = `
+      <option value="opt1">Option 1</option>
+      <option value="opt2">Option 2</option>
+      <option value="opt3">Option 3</option>
+    `;
     document.body.append(componentElement);
   };
 
