@@ -45,9 +45,8 @@
       if (window.Worker) {
         if (!thread) {
           thread = new Worker('./thread.js');
-        } else {
-          thread.postMessage(3000);
         }
+        thread.postMessage(3000);
 
         thread.onmessage = (event) => {
           document.getElementById('result').innerHTML = event.data;
