@@ -11,6 +11,13 @@ const slowFunction = (timeout = 3000) => {
     return x;
 }
 
+self.onmessage = (event) => {
+    const timeout = event.data;
+    const result = slowFunction(timeout);
+
+    postMessage(result);
+};
+
 const result = slowFunction();
 
 postMessage(result);
