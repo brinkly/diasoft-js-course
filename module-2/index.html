@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Diasoft JS Course - Module 2</title>
+  <style>
+    @keyframes spinner {
+      0% {
+        transform: scale(.1) rotate(0deg);
+        fill: currentColor;
+      }
+
+      33% {
+        transform: scale(1) rotate(150deg);
+        fill: transparent;
+      }
+
+      66% {
+        transform: scale(1) rotate(210deg);
+        fill: transparent;
+      }
+
+      100% {
+        transform: scale(.1) rotate(360deg);
+        fill: currentColor;
+      }
+    }
+
+    .spinner {
+      animation: spinner 1.5s infinite linear;
+      color: rgb(6, 75, 67);
+    }
+  </style>
+</head>
+<body>
+  <button id="start">Start!</button>
+  <div>
+    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="56" fill="none" class="spinner"><path stroke="currentColor" stroke-width="4" d="M3.464 30a4 4 0 0 1 0-4L16 4.287a4 4 0 0 1 3.464-2h25.072a4 4 0 0 1 3.464 2L60.536 26a4 4 0 0 1 0 4L48 51.713a4 4 0 0 1-3.464 2H19.464a4 4 0 0 1-3.464-2L3.464 30Z"/></svg>
+  </div>
+  <div id="result"></div>
+  <script>
+    document.getElementById('start').addEventListener('click', () => {
+      if (window.Worker) {
+        const thread = new Worker("./thread.js");
+
+        thread.onmessage = (event) => {
+          document.getElementById('result').innerHTML = event.data;
+          thread.terminate();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
