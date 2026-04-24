@@ -39,16 +39,21 @@
   </div>
   <div id="result"></div>
   <script>
-    document.getElementById('start').addEventListener('click', () => {
-      if (window.Worker) {
-        const thread = new Worker("./thread.js");
+    let thread;
 
+    document.getElementById('start').addEventListener('click', () => {
+      if (!window.Worker) {
+        return;
+      }
+
+      if (!thread) {
+        thread = new Worker('./thread.js');
         thread.onmessage = (event) => {
           document.getElementById('result').innerHTML = event.data;
-        }
-
-        thread.postMessage(3000);
+        };
       }
+
+      thread.postMessage(3000);
     });
   </script>
 </body>

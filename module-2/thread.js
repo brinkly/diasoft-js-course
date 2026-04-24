@@ -16,5 +16,4 @@ self.onmessage = (event) => {
     const result = slowFunction(timeout);
 
     postMessage(result);
-    self.close();
 };
